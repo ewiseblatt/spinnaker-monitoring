@@ -22,6 +22,7 @@ import os
 import re
 import traceback
 import urllib2
+import yaml
 
 import apiclient
 from googleapiclient.errors import HttpError
@@ -123,8 +124,8 @@ class StackdriverMetricsService(object):
   def __google_monitored_resource_or_none(self):
     """If deployed on GCE, return the monitored resource, else None."""
     project = self.__project
-    zone = self.__options.get('zone', None)
-    instance_id = self.__options.get('instance_id', None)
+    zone = self.get_option('zone')
+    instance_id = self.get_option('instance_id')
 
     try:
       if not project:
@@ -144,6 +145,10 @@ class StackdriverMetricsService(object):
     except IOError:
       return None
 
+  def get_option(self, name, default_value=None):
+    """Determine value of option from bindings or config file."""
+    return self.__options.get(name, self.__config.get(name, default_value))
+
   def __init__(self, stub_factory, options):
     """Constructor.
 
@@ -153,11 +158,21 @@ class StackdriverMetricsService(object):
           we create the handlers before we process commandline args.
     """
     self.logger = logging.getLogger(__name__)
-    self.__options = options
 
+    self.__config = {}
+
+    config_path = os.path.join(options['config_dir'], 'stackdriver.conf')
+    try:
+      with open(config_path, 'r') as stream:
+        self.__config = yaml.safe_load(stream)
+        logging.info('Reading stackdriver configuration from {0}'.format(config_path))
+    except:
+      logging.warn('Could not read from {0}'.format(config_path))
+
+    self.__options = options
     self.__stub_factory = stub_factory
     self.__stub = None
-    self.__project = options.get('project', None)
+    self.__project = self.get_option('project')
     if not self.__project:
       # Set default to our instance if we are on GCE.
       # Otherwise ignore since we might not actually need the project.
@@ -171,11 +186,12 @@ class StackdriverMetricsService(object):
     self.__monitored_resource = None
     self.__add_source_tag = False
 
+
   @staticmethod
   def add_parser_arguments(parser):
     """Add arguments for coniguring stackdriver."""
     parser.add_argument('--project', default='')
-    parser.add_argument('--zone', default='us-central1-f')
+    parser.add_argument('--zone', default='')
     parser.add_argument('--instance_id', default=0, type=int)
     parser.add_argument('--credentials_path', default='')
 

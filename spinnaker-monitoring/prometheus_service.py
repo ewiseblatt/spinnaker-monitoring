@@ -68,8 +68,8 @@ class PrometheusMetricsService(object):
   def __init__(self, options):
     self.__catalog = spectator_client.get_source_catalog(options['config_dir'])
     config = {}
+    config_path = os.path.join(options['config_dir'], 'prometheus.conf')
     try:
-      config_path = os.path.join(options['config_dir'], 'prometheus.conf')
       with open(config_path, 'r') as stream:
         config = yaml.safe_load(stream)
         logging.info('Reading prometheus configuration from {0}'.format(config_path))

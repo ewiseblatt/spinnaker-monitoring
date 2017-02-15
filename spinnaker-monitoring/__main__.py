@@ -77,6 +77,8 @@ def add_global_args(parser):
   """Add global parser options that are independent of the command."""
   parser.add_argument('--log_basename', default='spinnaker-monitoring')
   parser.add_argument('--log_dir', default='.')
+  parser.add_argument('--config_dir', default=CONFIG_DIR,
+                      help='Path to base configuration directory.')
 
 
 def main():

@@ -138,7 +138,7 @@ class ListCustomDescriptorsHandler(BaseStackdriverCommandHandler):
 
   def __get_descriptor_list(self, options):
     stackdriver = stackdriver_service.make_service(options)
-    project = options.get('project', None)
+    project = stackdriver.get_option('project')
     type_map = stackdriver.fetch_all_custom_descriptors(project)
     descriptor_list = type_map.values()
     descriptor_list.sort(self.compare_types)
@@ -205,8 +205,8 @@ class ClearCustomDescriptorsHandler(BaseStackdriverCommandHandler):
 
   def __do_clear(self, options):
     """Deletes exsiting custom metric descriptors."""
-    project = options.get('project', None)
     stackdriver = stackdriver_service.make_service(options)
+    project = stackdriver.get_option('project')
 
     type_map = stackdriver.fetch_all_custom_descriptors(project)
     delete_method = (stackdriver.stub.projects().metricDescriptors().delete)
@@ -451,9 +451,8 @@ class UpsertCustomDescriptorsHandler(BaseStackdriverCommandHandler):
       upsert_descriptors = self.load_descriptors(options)
 
     stackdriver = stackdriver_service.make_service(options)
-    processor = UpsertCustomDescriptorsProcessor(
-        options['project'], stackdriver)
-    project = options.get('project', None)
+    project = stackdriver.get_option('project')
+    processor = UpsertCustomDescriptorsProcessor(project, stackdriver)
     type_map = stackdriver.fetch_all_custom_descriptors(project)
 
     processor.upsert_descriptors(

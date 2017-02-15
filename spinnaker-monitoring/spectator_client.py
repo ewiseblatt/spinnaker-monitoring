@@ -120,8 +120,6 @@ class SpectatorClient(object):
 
   @staticmethod
   def add_standard_parser_arguments(parser):
-    parser.add_argument('--config_dir', default=CONFIG_DIR,
-                        help='Path to base configuration directory.')
     parser.add_argument('--prototype_path', default='',
                         help='Optional filter to restrict metrics of interest.')
     parser.add_argument(
