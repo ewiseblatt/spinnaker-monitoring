@@ -23,7 +23,6 @@ import http_server
 
 import command_processor
 import spectator_client
-#import stackdriver_service
 
 
 class HomePageHandler(command_processor.CommandHandler):
@@ -97,7 +96,6 @@ class WebserverCommandHandler(command_processor.CommandHandler):
     parser = super(WebserverCommandHandler, self).add_argparser(subparsers)
     parser.add_argument('--port', default=8008, type=int)
     spectator_client.SpectatorClient.add_standard_parser_arguments(parser)
-#    stackdriver_service.StackdriverMetricsService.add_parser_arguments(parser)
     return parser
 
 
@@ -127,9 +125,6 @@ class MonitorCommandHandler(WebserverCommandHandler):
     for factory in MonitorCommandHandler._service_factories:
       if factory.enabled(options):
         service_list.append(factory(options, self.command_handlers))
-
-#    if options['stackdriver']:
-#      service_list.append(stackdriver_service.make_service(options))
 
     if service_list:
       return service_list
@@ -228,25 +223,6 @@ class MonitorCommandHandler(WebserverCommandHandler):
     parser = super(MonitorCommandHandler, self).add_argparser(subparsers)
     for factory in MonitorCommandHandler._service_factories:
       factory.add_argparser(parser)
-
-#    parser.add_argument('--stackdriver', default=False, action='store_true',
-#                        help='Publish metrics to stackdriver.')
-
-    parser.add_argument(
-        '--fix_stackdriver_labels_unsafe', default=True,
-        action='store_true',
-        help='Work around Stackdriver design bug. Using this'
-        ' option can result in the loss of all historic data for'
-        ' a given metric that needs to workaround. Not using this'
-        ' options will result in the inability to collect metric'
-        ' data for a given metric that needs the workaround.'
-        ' When needed the workaround will only be needed once'
-        ' and then remembered for the lifetime of the project.')
-    parser.add_argument(
-        '--nofix_stackdriver_labels_unsafe',
-        dest='fix_stackdriver_labels_unsafe',
-        action='store_false')
-
     parser.add_argument('--period', default=60, type=int)
     return parser
 

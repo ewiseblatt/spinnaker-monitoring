@@ -26,9 +26,10 @@ import command_processor
 import datadog_service
 import prometheus_service
 import server_handlers
-#import stackdriver_handlers
 import spectator_client
 import spectator_handlers
+import stackdriver_service
+import stackdriver_handlers
 
 
 CONFIG_DIR = '/opt/spinnaker_monitor/conf'
@@ -89,13 +90,14 @@ def main():
 
   subparsers = parser.add_subparsers(title='commands', dest='command')
   spectator_handlers.add_handlers(all_command_handlers, subparsers)
+  stackdriver_handlers.add_handlers(all_command_handlers, subparsers)
   server_handlers.MonitorCommandHandler.register_metric_service_factory(
       prometheus_service.PrometheusServiceFactory())
   server_handlers.MonitorCommandHandler.register_metric_service_factory(
       datadog_service.DatadogServiceFactory())
+  server_handlers.MonitorCommandHandler.register_metric_service_factory(
+      stackdriver_service.StackdriverServiceFactory())
   server_handlers.add_handlers(all_command_handlers, subparsers)
-
-#  stackdriver_handlers.add_handlers(all_command_handlers, subparsers)
 
   opts = parser.parse_args()
   options = vars(opts)

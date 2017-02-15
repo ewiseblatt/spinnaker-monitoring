@@ -40,22 +40,22 @@ class CommandProcessorTest(unittest.TestCase):
     with self.assertRaises(ValueError):
         command_processor.process_command('CommandB', {}, [mock_a])
 
-  def accepts_html(self):
+  def accepts_content_type(self):
     request = mock.Mock()
     request.headers = {'accept': 'text/html'}
-    self.assertTrue(CommandHandler.accepts_html(request))
+    self.assertTrue(CommandHandler.accepts_content_type(request, 'text/html'))
 
     request.headers = {'accept': 'text/plain,text/html'}
-    self.assertTrue(CommandHandler.accepts_html(request))
+    self.assertTrue(CommandHandler.accepts_content_type(request, 'text/html'))
 
-  def does_not_implicitly_accept_html(self):
+  def does_not_implicitly_accept_content_type(self):
     request = mock.Mock()
-    self.assertFalse(CommandHandler.accepts_html(request))
+    self.assertFalse(CommandHandler.accepts_content_type(request, 'text/html'))
 
-  def does_not_accept_html(self):
+  def does_not_accept_content_type(self):
     request = mock.Mock()
     request.headers = {'accept': 'text/plain'}
-    self.assertFalse(CommandHandler.accepts_html(request))
+    self.assertFalse(CommandHandler.accepts_content_type(request, 'text/html'))
 
 
 if __name__ == '__main__':

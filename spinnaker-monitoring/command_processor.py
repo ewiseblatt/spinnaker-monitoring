@@ -56,13 +56,13 @@ class CommandHandler(object):
   """
 
   @staticmethod
-  def accepts_html(request):
+  def accepts_content_type(request, content_type):
     if not hasattr(request, 'headers'):
       return False
     accept = request.headers.get('accept', None)
     if not accept:
       return None
-    return 'text/html' in accept.split(',')
+    return content_type in accept.split(',')
 
   @property
   def url_path(self):

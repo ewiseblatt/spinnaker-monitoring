@@ -259,7 +259,7 @@ class ShowCurrentMetricsHandler(BaseSpectatorCommandHandler):
         config_dir=options['config_dir'])
     data_map = self._get_data_map(catalog, options)
 
-    if self.accepts_html(request):
+    if self.accepts_content_type(request, 'text/html'):
       content_type = 'text/html'
       by_service = self.service_map_to_html
       by_type = self.type_map_to_html
