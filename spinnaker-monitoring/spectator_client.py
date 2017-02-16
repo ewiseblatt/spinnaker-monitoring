@@ -197,10 +197,10 @@ class SpectatorClient(object):
 
   def collect_metrics(self, base_url, params=None):
     """Return JSON metrics from the given server."""
-    netloc = urlparse.urlsplit(base_url)[1]
-    host_port = netloc.split(':')
-    host = host_port[0]
-    port = int(host_port[1]) if len(host_port) > 1 else 80
+    info = urlparse.urlsplit(base_url)
+    host = info.hostname
+    port = info.port or 80
+
     sep = '?'
     query = ''
     query_params = dict(self.__default_scan_params)
