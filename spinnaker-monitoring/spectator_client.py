@@ -16,6 +16,7 @@
 # pylint: disable=star-args
 # pylint: disable=global-statement
 
+import base64
 import copy
 import glob
 import json
@@ -200,9 +201,17 @@ class SpectatorClient(object):
     info = urlparse.urlsplit(base_url)
     host = info.hostname
     port = info.port or 80
+    base_url = '{scheme}://{host}:{port}/{path}'.format(
+      scheme=info.scheme, host=host, port=port,
+      path=info.path)
 
-    sep = '?'
-    query = ''
+    authorization = None
+    if info.username or info.password:
+      authorization = base64.encodestring(
+          '%s:%s' % (info.username, info.password)).replace('\n', '')
+    
+    query = info.query
+    sep = '&' if query else '?'
     query_params = dict(self.__default_scan_params)
     if params is None:
       params = {}
@@ -218,7 +227,10 @@ class SpectatorClient(object):
       sep = "&"
 
     url = '{base_url}{query}'.format(base_url=base_url, query=query)
-    response = urllib2.urlopen(url)
+    request = urllib2.Request(url)
+    if authorization:
+      request.add_header('Authorization', 'Basic %s' % authorization)
+    response = urllib2.urlopen(request)
 
     all_metrics = json.JSONDecoder(encoding='utf-8').decode(response.read())
     try:
