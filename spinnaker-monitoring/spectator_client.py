@@ -30,7 +30,7 @@ import urlparse
 import yaml
 
 
-CONFIG_DIR = '/opt/monitor_spinnaker/config'
+CONFIG_DIR = '/opt/spinnaker-monitoring/config'
 
 _cached_source_catalog = None
 _cached_source_timestamp = None

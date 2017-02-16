@@ -1,0 +1,64 @@
+buildscript {
+  repositories {
+    jcenter()
+    maven { url "https://spinnaker.bintray.com/gradle" }
+    maven { url "https://plugins.gradle.org/m2/" }
+
+  }
+  dependencies {
+    classpath 'com.netflix.spinnaker.gradle:spinnaker-gradle-project:3.12.0'
+  }
+}
+
+group = "com.netflix.spinnaker.monitoring"
+
+apply plugin: 'spinnaker.project'
+apply plugin: 'nebula.ospackage'
+
+String toVers(String v) {
+  int idx = v.indexOf('-')
+  if (idx != -1) {
+    return v.substring(0, idx)
+  }
+  return v
+}
+
+ospackage {
+
+// common installation paths 
+  def spinnakerMonitoringHome = "/opt/" + project.name
+
+// global package requirements
+  packageName = project.name
+  version = toVers(project.version.toString())
+  release '3'
+
+// installer scripts
+  postInstall = file('pkg_scripts/postInstall.sh')
+
+
+  from(project.name) {
+    into spinnakerMonitoringHome 
+  }
+
+  from(file('requirements.txt')) {
+    into('/tmp/spinnaker-monitoring')
+  }
+
+
+  from('bin') {
+    into spinnakerMonitoringHome + '/bin'
+    fileMode = 0755
+  }  
+
+  from(file('etc/init/spinnaker-monitoring.conf')) {
+    into('/etc/init')
+    user = 'root'
+    permissionGroup = 'root'
+    fileType = CONFIG | NOREPLACE
+  }
+
+
+}
+
+defaultTasks 'buildDeb'

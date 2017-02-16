@@ -32,7 +32,7 @@ import stackdriver_service
 import stackdriver_handlers
 
 
-CONFIG_DIR = '/opt/spinnaker_monitor/conf'
+CONFIG_DIR = '/opt/spinnaker-monitoring/conf'
 
 
 def init_logging(options):
