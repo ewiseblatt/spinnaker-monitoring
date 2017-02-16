@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import argparse
+import base64
 import copy
 import json
 import os
@@ -21,6 +22,7 @@ import unittest
 from StringIO import StringIO
 import mock
 from mock import patch
+from urllib2 import Request
 
 import spectator_client
 
@@ -114,13 +116,23 @@ GATE_RESPONSE_TEXT = json.JSONEncoder(encoding='utf-8').encode(
     GATE_RESPONSE_OBJ)
 
 
+class TestableSpectatorClient(spectator_client.SpectatorClient):
+  def __init__(self, options):
+    self.requests = []
+    super(TestableSpectatorClient, self).__init__(options)
+
+  def create_request(self, url, authorization):
+    self.requests.append((url, authorization))
+    return super(TestableSpectatorClient, self).create_request(url, authorization)
+
+
 class SpectatorClientTest(unittest.TestCase):
   DEV_CONF_DIR = os.path.abspath(
       os.path.join(os.path.dirname(__file__), '..', 'conf.dev'))
 
   def setUp(self):
     options = {'prototype_path': None, 'host': TEST_HOST}
-    self.spectator = spectator_client.SpectatorClient(options)
+    self.spectator = TestableSpectatorClient(options)
     self.default_query_params = '?tagNameRegex=.%2B'  # tagNameRegex=.+
 
 
@@ -197,8 +209,8 @@ class SpectatorClientTest(unittest.TestCase):
     mock_time.return_value = now_time
 
     response = self.spectator.collect_metrics(url)
-    mock_urlopen.assert_called_with(
-        '{0}{1}'.format(url, self.default_query_params))
+    self.assertEquals([(url + self.default_query_params, None)],
+                      self.spectator.requests)
     self.assertEqual(expect, response)
 
   @patch('spectator_client.urllib2.urlopen')
@@ -221,7 +233,37 @@ class SpectatorClientTest(unittest.TestCase):
     mock_urlopen.return_value = mock_http_response
 
     self.spectator.collect_metrics(url, params)
-    mock_urlopen.assert_called_with('{0}{1}'.format(url, expected_query))
+    self.assertEquals([(url + expected_query, None)],
+                      self.spectator.requests)
+
+  @patch('spectator_client.time.time')
+  @patch('spectator_client.urllib2.urlopen')
+  def test_collect_metrics_with_password(self, mock_urlopen, mock_time):
+    now_time = 1.234
+    port = 80
+    url = 'https://TESTUSER:TESTPASSWORD@{0}/spectator-metrics'.format(TEST_HOST)
+    metrics_response = CLOUDDRIVER_RESPONSE_OBJ
+    expect = copy.deepcopy(metrics_response)
+    expect['__host'] = TEST_HOST
+    expect['__port'] = port
+    expect['metrics']['spectator.datapoints'] = {
+      'kind': 'Gauge',
+      'values': [{'values': [{'t': int(now_time * 1000), 'v': 4}],
+                  'tags': [{'key': 'success', 'value': 'true'}]}]
+    }
+
+    text = json.JSONEncoder(encoding='utf-8').encode(metrics_response)
+    mock_http_response = StringIO(text)
+    mock_urlopen.return_value = mock_http_response
+    mock_time.return_value = now_time
+
+    response = self.spectator.collect_metrics(url)
+    self.assertEquals([
+      ('https://{0}/spectator-metrics{1}'.format(TEST_HOST,
+                                                 self.default_query_params),
+           base64.encodestring('TESTUSER:TESTPASSWORD').replace('\n', ''))],
+       self.spectator.requests)
+    self.assertEqual(expect, response)
 
   @patch('spectator_client.time.time')
   @patch('spectator_client.urllib2.urlopen')
@@ -245,9 +287,8 @@ class SpectatorClientTest(unittest.TestCase):
 
     response = self.spectator.scan_by_service(
         {'clouddriver': {'metrics_url': [url]}})
-    mock_urlopen.assert_called_with(
-        '{0}{1}'.format(url, self.default_query_params))
-
+    self.assertEquals([(url + self.default_query_params, None)],
+                      self.spectator.requests)
     self.assertEqual({'clouddriver': [expect]}, response)
 
   @patch('spectator_client.time.time')
@@ -257,7 +298,7 @@ class SpectatorClientTest(unittest.TestCase):
     url_one = 'http://FirstHost:7002/spectator/metrics'
     one_response = CLOUDDRIVER_RESPONSE_OBJ
     expect_one = copy.deepcopy(one_response)
-    expect_one['__host'] = 'FirstHost'
+    expect_one['__host'] = 'firsthost'
     expect_one['__port'] = 7002
     expect_one['metrics']['spectator.datapoints'] = {
       'kind': 'Gauge',
@@ -269,7 +310,7 @@ class SpectatorClientTest(unittest.TestCase):
     two_response = dict(one_response)
     two_response['random'] = 'A distinguishing value'
     expect_two = dict(expect_one)
-    expect_two['__host'] = 'SecondHost'
+    expect_two['__host'] = 'secondhost'
     expect_two['random'] = two_response['random']
 
     text_one = json.JSONEncoder(encoding='utf-8').encode(one_response)
@@ -281,11 +322,14 @@ class SpectatorClientTest(unittest.TestCase):
 
     response = self.spectator.scan_by_service(
         {'clouddriver': {'metrics_url': [url_one, url_two]}})
-    calls = [mock.call('http://FirstHost:7002/spectator/metrics{0}'
-                       .format(self.default_query_params)),
-             mock.call('http://SecondHost:7002/spectator/metrics{0}'
-                       .format(self.default_query_params))]
-    mock_urlopen.assert_has_calls(calls)
+    self.assertEquals(
+      [
+          ('http://firsthost:7002/spectator/metrics{0}'
+             .format(self.default_query_params), None),
+          ('http://secondhost:7002/spectator/metrics{0}'
+             .format(self.default_query_params), None)
+      ],
+      self.spectator.requests)
 
     self.assertEqual({'clouddriver': expect}, response)
 
@@ -332,9 +376,9 @@ class SpectatorClientTest(unittest.TestCase):
 
     # Order does not matter.
     self.assertEquals(
-        sorted([mock.call(clouddriver_url + self.default_query_params),
-                mock.call(gate_url + self.default_query_params)]),
-        sorted(mock_urlopen.call_args_list))
+        sorted([(clouddriver_url + self.default_query_params, None),
+                (gate_url + self.default_query_params, None)]),
+        sorted(self.spectator.requests))
 
     self.assertEqual({'clouddriver': [expect_clouddriver],
                       'gate': [expect_gate]},
@@ -385,8 +429,8 @@ class SpectatorClientTest(unittest.TestCase):
     url = 'http://{0}:7002/spectator/metrics'.format(TEST_HOST)
     response = self.spectator.scan_by_type(
         {'clouddriver': {'metrics_url': [url]}})
-    mock_urlopen.assert_called_with(url + self.default_query_params)
-
+    self.assertEquals([(url + self.default_query_params, None)],
+                      self.spectator.requests)
     del response['spectator.datapoints']
     self.assertEqual(expect, response)
 
@@ -408,17 +452,18 @@ class SpectatorClientTest(unittest.TestCase):
     mock_urlopen.side_effect = {'clouddriver': mock_clouddriver_response,
                                 'gate': mock_gate_response}.values()
 
-    clouddriver_url = 'http://{0}:7002/spectator/metrics{1}'.format(
-        TEST_HOST, self.default_query_params)
-    gate_url = 'http://{0}:8084/spectator/metrics{1}'.format(
-        TEST_HOST, self.default_query_params)
+    clouddriver_url = 'http://{0}:7002/spectator/metrics?a=C'.format(
+        TEST_HOST)
+    gate_url = 'http://{0}:8084/spectator/metrics?gate=YES'.format(
+        TEST_HOST)
     response = self.spectator.scan_by_type(
         {'clouddriver': {'metrics_url': [clouddriver_url]},
          'gate': {'metrics_url': [gate_url]}})
+      
     self.assertEquals(
-        sorted([mock.call(clouddriver_url + self.default_query_params),
-                mock.call(gate_url + self.default_query_params)]),
-        sorted(mock_urlopen.call_args_list))
+        sorted([(clouddriver_url + '&tagNameRegex=.%2B', None),
+                (gate_url + '&tagNameRegex=.%2B', None)]),
+        sorted(self.spectator.requests))
 
     del response['spectator.datapoints']
     self.assertEqual(expect, response)

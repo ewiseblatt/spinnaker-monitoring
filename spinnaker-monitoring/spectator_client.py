@@ -196,22 +196,44 @@ class SpectatorClient(object):
     if lines:
       logging.info('==== DIFF {0} ===\n{1}\n'.format(key, '\n'.join(lines)))
 
+  
+  def create_request(self, url, authorization):
+    """Helper function to create a request to facilitate testing.
+
+    Wrapper around creating a Request because Request does not implement
+    equals so it's difficult to test directly.
+
+    Args:
+      url: [string] The url for the request.
+      authorization: [string] None or the base64 encoded authorization string.
+
+    Returns:
+      urllib2.Request instance
+    """
+    request = urllib2.Request(url)
+    if authorization:
+      request.add_header('Authorization', 'Basic %s' % authorization)
+    return request
+    
   def collect_metrics(self, base_url, params=None):
     """Return JSON metrics from the given server."""
     info = urlparse.urlsplit(base_url)
     host = info.hostname
     port = info.port or 80
-    base_url = '{scheme}://{host}:{port}/{path}'.format(
-      scheme=info.scheme, host=host, port=port,
-      path=info.path)
+    netloc = host
+
+    if info.port:
+      netloc += ':{0}'.format(info.port)
+    base_url = '{scheme}://{netloc}{path}'.format(
+      scheme=info.scheme, netloc=netloc, path=info.path)
 
     authorization = None
     if info.username or info.password:
       authorization = base64.encodestring(
           '%s:%s' % (info.username, info.password)).replace('\n', '')
     
-    query = info.query
-    sep = '&' if query else '?'
+    query = '?' + info.query if info.query else ''
+    sep = '&' if info.query else '?'
     query_params = dict(self.__default_scan_params)
     if params is None:
       params = {}
@@ -226,11 +248,8 @@ class SpectatorClient(object):
       query += sep + key + "=" + urllib2.quote(value)
       sep = "&"
 
-    url = '{base_url}{query}'.format(base_url=base_url, query=query)
-    request = urllib2.Request(url)
-    if authorization:
-      request.add_header('Authorization', 'Basic %s' % authorization)
-    response = urllib2.urlopen(request)
+    url = '{base_url}{query}'.format(base_url=base_url, query=query)   
+    response = urllib2.urlopen(self.create_request(url, authorization))
 
     all_metrics = json.JSONDecoder(encoding='utf-8').decode(response.read())
     try:

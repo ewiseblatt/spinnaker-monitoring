@@ -182,7 +182,7 @@ class StackdriverMetricsService(object):
         pass
 
     self.__fix_stackdriver_labels_unsafe = options.get(
-        'fix_stackdriver_labels_unsafe', False)
+        'fix_stackdriver_labels_unsafe', True)
     self.__monitored_resource = None
     self.__add_source_tag = False
 
@@ -429,6 +429,21 @@ class StackdriverServiceFactory(object):
     StackdriverMetricsService.add_parser_arguments(parser)
     parser.add_argument('--stackdriver', default=False, action='store_true',
                         help='Publish metrics to Stackdriver.')
+
+    parser.add_argument(
+        '--fix_stackdriver_labels_unsafe', default=True,
+        action='store_true',
+        help='Work around Stackdriver design bug. Using this'
+        ' option can result in the loss of all historic data for'
+        ' a given metric that needs to workaround. Not using this'
+        ' options will result in the inability to collect metric'
+        ' data for a given metric that needs the workaround.'
+        ' When needed the workaround will only be needed once'
+        ' and then remembered for the lifetime of the project.')
+    parser.add_argument(
+        '--nofix_stackdriver_labels_unsafe',
+        dest='fix_stackdriver_labels_unsafe',
+        action='store_false')
 
   def __call__(self, options, command_handlers):
     """Create a datadog service instance for interacting with Datadog."""
